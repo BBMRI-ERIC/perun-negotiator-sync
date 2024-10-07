@@ -1,0 +1,50 @@
+[
+   {
+      "administrator" : {
+         "biobanks" : [],
+         "collections" : [],
+         "national_nodes" : [],
+         "networks" : [],
+         "service_providers" : [],
+         "services" : []
+      },
+      "displayName" : "Taylor Biobanker",
+      "id" : "1001@bbmri.eu",
+      "mail" : "taylor.biobanker@gmail.com",
+      "membership" : {
+         "biobanks" : [
+         ],
+         "collections" : [
+
+         ],
+         "national_nodes" : [],
+         "networks" : [],
+         "service_providers" : [],
+         "services" : []
+      }
+   },
+   {
+      "administrator" : {
+         "biobanks" : [],
+         "collections" : [],
+         "national_nodes" : [],
+         "networks" : [],
+         "service_providers" : [],
+         "services" : []
+      },
+      "displayName" : "Adam Researcher",
+      "id" : "1000@bbmri.eu",
+      "mail" : "adam.researcher@gmail.com",
+      "membership" : {
+         "biobanks" : [
+         ],
+         "collections" : [
+            "bbmri-eric:ID:SE_890:collection:dummy_collection"
+         ],
+         "national_nodes" : [],
+         "networks" : [],
+         "service_providers" : [],
+         "services" : []
+      }
+   }
+]
