@@ -18,7 +18,9 @@
 
          ],
          "national_nodes" : [],
-         "networks" : [],
+         "networks" : [
+            "bbmri-eric:ID:SE_890:network:bbmri-eric"
+         ],
          "service_providers" : [],
          "services" : []
       }
@@ -42,7 +44,8 @@
             "bbmri-eric:ID:SE_890:collection:dummy_collection"
          ],
          "national_nodes" : [],
-         "networks" : [],
+         "networks" : [
+         ],
          "service_providers" : [],
          "services" : []
       }

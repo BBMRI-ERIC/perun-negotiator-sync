@@ -92,14 +92,15 @@ def fetch_users():
     return users
 
 
-def fetch_resources(user_id=None):
+def fetch_resources(user_id=None, resource_endpoint="resources", mapping_id_name = "sourceId"):
     """
     Fetches all resources from api
     :param user_id: Id of user to fetch resources for (optional)
+    :param resource_endpoint: Endpoint to fetch resources from
     :return: Fetched resources
     """
     user_part = f"/users/{user_id}" if user_id else ""
-    endpoint_url = f"{api_url}{user_part}/resources"
+    endpoint_url = f"{api_url}{user_part}/{resource_endpoint}"
     resources = []
     response = session.get(endpoint_url)
     if not response.ok:
@@ -118,23 +119,23 @@ def fetch_resources(user_id=None):
                 exit(1)
         response = response.json()
         page = response.get("page").get("number") + 1
-        resources.extend(response.get("_embedded", {}).get("resources", []))
+        resources.extend(response.get("_embedded", {}).get(resource_endpoint, []))
 
     # save the mapping for later
     for their_resource in resources:
-        resources_mapping[their_resource["sourceId"]] = their_resource["id"]
+        resources_mapping[their_resource[mapping_id_name]] = their_resource["id"]
 
     return resources
 
-
-def add_resource(user_id, resource_id):
+def add_resource(user_id, resource_id, resource_endpoint="resources"):
     """
     Adds a resource to the user
     :param user_id:
     :param resource_id:
+    :param resource_endpoint:
     :return:
     """
-    endpoint_url = f"{api_url}/users/{user_id}/resources"
+    endpoint_url = f"{api_url}/users/{user_id}/{resource_endpoint}"
     data = {"id": resource_id}
     response = session.patch(
         endpoint_url,
@@ -147,14 +148,15 @@ def add_resource(user_id, resource_id):
             exit(1)
 
 
-def remove_resource(user_id, resource_id):
+def remove_resource(user_id, resource_id, resource_endpoint="resources"):
     """
     Removes a resource from the user
     :param user_id:
     :param resource_id:
+    :param resource_endpoint:
     :return:
     """
-    endpoint_url = f"{api_url}/users/{user_id}/resources/{resource_id}"
+    endpoint_url = f"{api_url}/users/{user_id}/{resource_endpoint}/{resource_id}"
     response = session.delete(endpoint_url)
     if not response.ok:
         if not response.ok:
@@ -162,39 +164,49 @@ def remove_resource(user_id, resource_id):
             exit(1)
 
 
-def update_user(our_user, their_user):
+def update_user(our_user, their_user, resource_type="collections"):
     """
     Check user's assigned resources. Add missing ones and remove redundant ones.
     :param our_user: User entry from generated data
     :param their_user: Fetched user
+    :param resource_type: Type of resource to check
     :return:
     """
-    their_resources = fetch_resources(their_user["id"])
+    mapping_id_name = "sourceId"
+    if resource_type == "collections":
+        resource_endpoint = "resources"
+    elif resource_type == "networks":
+        resource_endpoint = resource_type
+        mapping_id_name = "externalId"
+    else:
+        resource_endpoint = resource_type
+    their_resources = fetch_resources(their_user["id"], resource_endpoint, mapping_id_name)
     our_resources = []
-    our_resources.extend(our_user["membership"]["biobanks"])
-    our_resources.extend(our_user["membership"]["collections"])
-    our_resources.extend(our_user["membership"]["national_nodes"])
-    our_resources.extend(our_user["membership"]["networks"])
+    our_resources.extend(our_user["membership"][resource_type])
+    # our_resources.extend(our_user["membership"]["biobanks"])
+    # our_resources.extend(our_user["membership"]["collections"])
+    # our_resources.extend(our_user["membership"]["national_nodes"])
+    # our_resources.extend(our_user["membership"]["networks"])
 
     updated = False
     for our_resource in our_resources:
         their_resource = next(
-            filter(lambda r: r["sourceId"] == our_resource, their_resources), None
+            filter(lambda r: r[mapping_id_name] == our_resource, their_resources), None
         )
         if not their_resource:
             their_resource_id = resources_mapping.get(our_resource)
             if not their_resource_id:
                 resources_unknown.add(our_resource)
                 continue
-            add_resource(their_user["id"], their_resource_id)
+            add_resource(their_user["id"], their_resource_id, resource_endpoint)
             updated = True
 
     for their_resource in their_resources:
         our_resource = next(
-            filter(lambda r: r == their_resource["sourceId"], our_resources), None
+            filter(lambda r: r == their_resource[mapping_id_name], our_resources), None
         )
         if not our_resource:
-            remove_resource(their_user["id"], their_resource["id"])
+            remove_resource(their_user["id"], their_resource["id"], resource_endpoint)
             updated = True
 
     global updated_resources
@@ -230,6 +242,7 @@ if __name__ == "__main__":
 
     their_users = fetch_users()
     their_resources = fetch_resources()
+    their_networks = fetch_resources(resource_endpoint="networks", mapping_id_name="externalId")
 
     for our_user in our_users:
         their_user = next(
@@ -238,5 +251,6 @@ if __name__ == "__main__":
         )
 
         if their_user:
-            update_user(our_user, their_user)
+            update_user(our_user, their_user, "collections")
+            update_user(our_user, their_user, "networks")
     print_stats()
