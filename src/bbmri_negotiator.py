@@ -173,16 +173,22 @@ def update_user(our_user, their_user, resource_type="collections"):
     :return:
     """
     mapping_id_name = "sourceId"
+    sections = ["membership"]
     if resource_type == "collections":
         resource_endpoint = "resources"
+        sections = ["membership"]
     elif resource_type == "networks":
         resource_endpoint = resource_type
         mapping_id_name = "externalId"
+        sections = ["membership","administrator"]
+
     else:
         resource_endpoint = resource_type
     their_resources = fetch_resources(their_user["id"], resource_endpoint, mapping_id_name)
     our_resources = []
-    our_resources.extend(our_user["membership"][resource_type])
+    for section in sections:
+        our_resources.extend(our_user[section][resource_type])
+    #our_resources.extend(our_user["membership"][resource_type])
     # our_resources.extend(our_user["membership"]["biobanks"])
     # our_resources.extend(our_user["membership"]["collections"])
     # our_resources.extend(our_user["membership"]["national_nodes"])
