@@ -13,6 +13,7 @@ BASE="http://localhost:8081/api/v3/users"
 check_resources() {
   local url=$1
   local expected_length=$2
+  local resource_type=$(basename "$url")
 
   # Make the request and capture the HTTP status code
   response=$(curl -s -w "%{http_code}" --oauth2-bearer "$ACCESS_TOKEN" "$url")
@@ -22,7 +23,7 @@ check_resources() {
   # Check if the HTTP status is 200
   if [ "$http_status" -eq 200 ]; then
     # Extract the length of resources using jq
-    length=$(echo "$response_body" | jq '.["_embedded"]["resources"] | length')
+    length=$(echo "$response_body" | jq ".[\"_embedded\"][\"$resource_type\"] | length")
 
     # Check if the length matches the expected value
     if [ "$length" -ne "$expected_length" ]; then
@@ -38,8 +39,20 @@ check_resources() {
 }
 
 
-# Check both URLs
+# Check Collections
+check_resources "${BASE}/1/resources" 0
+check_resources "${BASE}/2/resources" 1
+
+# Check Networks
+check_resources "${BASE}/1/networks" 1
+check_resources "${BASE}/2/networks" 0
+
+python3 src/bbmri_negotiator.py resources/test_negotiator.json
+
+# Check Collections
 check_resources "${BASE}/1/resources" 1
 check_resources "${BASE}/2/resources" 0
 
-
+# Check Networks
+check_resources "${BASE}/1/networks" 0
+check_resources "${BASE}/2/networks" 1
