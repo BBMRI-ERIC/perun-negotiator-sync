@@ -70,6 +70,10 @@ def remove_prefix_from_resource_id(resource_id, prefix):
     return resource_id.removeprefix(prefix)
 
 
+def add_prefix_to_resource_id(resource_id, prefix):
+    return f"{prefix}{resource_id}"
+
+
 def fetch_users():
     """
     Fetches all users from api
@@ -214,7 +218,7 @@ def update_user(our_user, their_user, resource_type="collections"):
 
     for their_resource in their_resources:
         our_resource = next(
-            filter(lambda r: r == their_resource[mapping_id_name], our_resources), None
+            filter(lambda r: r == add_prefix_to_resource_id(their_resource[mapping_id_name], ids_prefix), our_resources), None
         )
         if not our_resource:
             remove_resource(their_user["id"], their_resource["id"], resource_endpoint)
@@ -251,11 +255,15 @@ if __name__ == "__main__":
     headers = {"Authorization": "Bearer " + access_token}
     session.headers.update(headers)
 
+    print("Retrieving users from negotiator")
     their_users = fetch_users()
+    print("Retrieving collections from negotiator")
     their_resources = fetch_resources()
+    print("Retrieving networks from negotiator")
     their_networks = fetch_resources(resource_endpoint="networks", mapping_id_name="externalId")
 
     for our_user in our_users:
+        print(f"Processing user {our_user["mail"]}")
         their_user = next(
             (u for u in their_users if u["subjectId"] == our_user["id"]),
             None,
