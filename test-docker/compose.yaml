@@ -65,6 +65,7 @@ services:
       - "NEGOTIATOR_AUTHORIZATION_BIOBANKERCLAIMVALUE=urn:geant:bbmri-eric.eu:res:role_representative#perun.bbmri-eric.eu"
       - "NEGOTIATOR_AUTHORIZATION_RESOURCECLAIMPREFIX=urn:geant:bbmri-eric.eu:group:bbmri:collections:BBMRI-ERIC%20Directory:"
       - NEGOTIATOR_AUTHORIZATION_SUBJECTCLAIM=sub
+      - NEGOTIATOR_WEBHOOK_SECRETENCRYPTION_ENABLED=false
       - SPRING_SECURITY_OAUTH2_RESOURCESERVER_JWT_USERINFOURI=http://oidc-server-mock/connect/userinfo
       - SPRING_SECURITY_OAUTH2_RESOURCESERVER_JWT_ISSUERURI=http://localhost:4011
       - SPRING_SECURITY_OAUTH2_RESOURCESERVER_JWT_JWKSETURI=http://oidc-server-mock/.well-known/openid-configuration/jwks
@@ -90,6 +91,8 @@ services:
     command: -c 'shared_buffers=256MB' -c 'max_locks_per_transaction=1024'
     networks:
       - oauth-test
+    ports:
+      - 5432:5432
 networks:
   oauth-test:
     driver: bridge
