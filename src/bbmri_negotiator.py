@@ -8,7 +8,7 @@ from urllib3 import Retry
 
 SERVICE_NAME = "bbmri_negotiator"
 CONFIG_PATH = f"/etc/perun/services/{SERVICE_NAME}"  # folder containing the configuration file
-CONFIG_PROPS = ["client_id", "client_secret", "resource", "token_url", "api_url"]
+CONFIG_PROPS = ["client_id", "client_secret", "resource", "token_url", "api_url", "ids_prefix"]
 
 # Global variables
 access_token = None
@@ -21,6 +21,7 @@ resources_mapping = {}  # {external (Perun) ID: internal (Negotiator) ID}
 resources_unknown = set()
 updated_resources = 0
 session = None
+ids_prefix = "acc:"  # the prefix in perun groups to be removed to map negotiator resources and networks
 
 
 def renew_access_token():
@@ -38,15 +39,16 @@ def load_config_variables():
     """
     Loads global variables from /etc/perun/services/bbmri_negotiator/bbmri_negotiator.py
     """
-    global client_id, client_secret, resource, token_url, api_url
+    global client_id, client_secret, resource, token_url, api_url, ids_prefix
     try:
         sys.path.insert(1, CONFIG_PATH)
-        credentials = __import__("bbmri_negotiator")
-        client_id = credentials.client_id
-        client_secret = credentials.client_secret
-        resource = credentials.resource
-        token_url = credentials.token_url
-        api_url = credentials.api_url
+        vars = __import__("bbmri_negotiator")
+        client_id = vars.client_id
+        client_secret = vars.client_secret
+        resource = vars.resource
+        token_url = vars.token_url
+        api_url = vars.api_url
+        ids_prefix = vars.ids_prefix
     except Exception as e:
         print(
             f"Could not load configuration. Expected {CONFIG_PROPS} fields in {CONFIG_PATH}/{SERVICE_NAME}.py\n{e}"
@@ -62,6 +64,14 @@ def parse_input(filepath):
     """
     with open(filepath, "rb") as f:
         return json.load(f)
+
+
+def remove_prefix_from_resource_id(resource_id, prefix):
+    return resource_id.removeprefix(prefix)
+
+
+def add_prefix_to_resource_id(resource_id, prefix):
+    return f"{prefix}{resource_id}"
 
 
 def fetch_users():
@@ -104,9 +114,8 @@ def fetch_resources(user_id=None, resource_endpoint="resources", mapping_id_name
     resources = []
     response = session.get(endpoint_url)
     if not response.ok:
-        if not response.ok:
-            print(f"Unable to fetch resources: {response.content}")
-            exit(1)
+        print(f"Unable to fetch resources: {response.content}")
+        exit(1)
     response = response.json()
     resources.extend(response.get("_embedded", {}).get("resources", []))
     page = 0
@@ -143,9 +152,8 @@ def add_resource(user_id, resource_id, resource_endpoint="resources"):
         headers={"Authorization": "Bearer " + access_token},
     )
     if not response.ok:
-        if not response.ok:
-            print(f"Unable to add resource: {response.content}")
-            exit(1)
+        print(f"Unable to add resource: {response.content}")
+        exit(1)
 
 
 def remove_resource(user_id, resource_id, resource_endpoint="resources"):
@@ -158,10 +166,10 @@ def remove_resource(user_id, resource_id, resource_endpoint="resources"):
     """
     endpoint_url = f"{api_url}/users/{user_id}/{resource_endpoint}/{resource_id}"
     response = session.delete(endpoint_url)
+
     if not response.ok:
-        if not response.ok:
-            print(f"Unable to remove resource: {response.content}")
-            exit(1)
+        print(f"Unable to remove resource: {response.content}")
+        exit(1)
 
 
 def update_user(our_user, their_user, resource_type="collections"):
@@ -196,6 +204,7 @@ def update_user(our_user, their_user, resource_type="collections"):
 
     updated = False
     for our_resource in our_resources:
+        our_resource = remove_prefix_from_resource_id(our_resource, ids_prefix)
         their_resource = next(
             filter(lambda r: r[mapping_id_name] == our_resource, their_resources), None
         )
@@ -209,7 +218,7 @@ def update_user(our_user, their_user, resource_type="collections"):
 
     for their_resource in their_resources:
         our_resource = next(
-            filter(lambda r: r == their_resource[mapping_id_name], our_resources), None
+            filter(lambda r: r == add_prefix_to_resource_id(their_resource[mapping_id_name], ids_prefix), our_resources), None
         )
         if not our_resource:
             remove_resource(their_user["id"], their_resource["id"], resource_endpoint)
@@ -246,11 +255,15 @@ if __name__ == "__main__":
     headers = {"Authorization": "Bearer " + access_token}
     session.headers.update(headers)
 
+    print("Retrieving users from negotiator")
     their_users = fetch_users()
+    print("Retrieving collections from negotiator")
     their_resources = fetch_resources()
+    print("Retrieving networks from negotiator")
     their_networks = fetch_resources(resource_endpoint="networks", mapping_id_name="externalId")
 
     for our_user in our_users:
+        print(f"Processing user {our_user["mail"]}")
         their_user = next(
             (u for u in their_users if u["subjectId"] == our_user["id"]),
             None,
