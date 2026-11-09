@@ -26,7 +26,7 @@ ids_prefix = "acc:"  # the prefix in perun groups to be removed to map negotiato
 
 def renew_access_token():
     """Gets new access token from token endpoint"""
-    payload = {"grant_type": "client_credentials", "resource": resource}
+    payload = {"grant_type": "client_credentials", "resource": resource, "scope" : "negotiator_authz_management"}
 
     response = session.post(token_url, auth=(client_id, client_secret), data=payload)
     if not response.ok:
